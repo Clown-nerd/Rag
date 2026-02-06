@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from rag.pdf_to_text import pdf_to_text
 from rag.chunking import chunk_text
 from rag.embed_store import build_and_save_index, load_index
-from rag.rag_answer import retrieve, generate_answer
+from rag.rag_answer import retrieve, generate_answer, draft_document
 
 app = FastAPI()
 
@@ -33,6 +33,9 @@ chunks = None
 class ChatIn(BaseModel):
     message: str
 
+class DraftIn(BaseModel):
+    instruction: str
+
 @app.post("/ingest")
 def ingest():
     global index, chunks
@@ -55,3 +58,18 @@ def chat(payload: ChatIn):
     hits = retrieve(payload.message, index, chunks)
     answer = generate_answer(payload.message, hits)
     return {"answer": answer}
+
+@app.post("/draft")
+def draft(payload: DraftIn):
+    """Draft a legal document using the knowledge base as reference material."""
+    global index, chunks
+
+    if index is None or chunks is None:
+        if os.path.exists(INDEX_PATH) and os.path.exists(META_PATH):
+            index, chunks = load_index(INDEX_PATH, META_PATH)
+        else:
+            return {"draft": "Knowledge base not ingested yet. Call /ingest first."}
+
+    hits = retrieve(payload.instruction, index, chunks)
+    result = draft_document(payload.instruction, hits)
+    return {"draft": result}

@@ -3,8 +3,11 @@ import numpy as np
 import faiss
 from openai import OpenAI
 
-client = OpenAI()
-EMBED_MODEL = "text-embedding-3-small"
+from config.settings import get_settings
+
+_cfg = get_settings()
+client = OpenAI(base_url=_cfg["ollama_base_url"], api_key="ollama")
+EMBED_MODEL = _cfg["embed_model"]
 
 def embed_texts(texts):
     resp = client.embeddings.create(model=EMBED_MODEL, input=texts)
