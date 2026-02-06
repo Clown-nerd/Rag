@@ -19,7 +19,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -89,7 +89,13 @@ async def upload_pdf(file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         return {"status": "error", "detail": "Only PDF files are accepted."}
 
-    dest = os.path.join(DATA_DIR, os.path.basename(file.filename))
+    # Sanitize filename: strip directory components and disallow hidden/special names
+    safe_name = os.path.basename(file.filename).lstrip(".")
+    safe_name = safe_name.replace("/", "_").replace("\\", "_").replace("..", "_")
+    if not safe_name or not safe_name.lower().endswith(".pdf"):
+        return {"status": "error", "detail": "Invalid filename."}
+
+    dest = os.path.join(DATA_DIR, safe_name)
     contents = await file.read()
     with open(dest, "wb") as f:
         f.write(contents)
