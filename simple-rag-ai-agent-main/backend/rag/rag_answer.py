@@ -2,9 +2,13 @@ import numpy as np
 from openai import OpenAI
 import faiss
 
-client = OpenAI()
-CHAT_MODEL = "gpt-5.2"
-EMBED_MODEL = "text-embedding-3-small"
+from config.settings import get_settings
+from config.prompts import SYSTEM_PROMPT, DRAFT_PROMPT
+
+_cfg = get_settings()
+client = OpenAI(base_url=_cfg["ollama_base_url"], api_key="ollama")
+CHAT_MODEL = _cfg["chat_model"]
+EMBED_MODEL = _cfg["embed_model"]
 
 def embed_query(query: str):
     resp = client.embeddings.create(model=EMBED_MODEL, input=[query])
@@ -12,7 +16,9 @@ def embed_query(query: str):
     faiss.normalize_L2(vec)
     return vec
 
-def retrieve(query, index, chunks, k=4):
+def retrieve(query, index, chunks, k=None):
+    if k is None:
+        k = _cfg["retrieval_k"]
     qvec = embed_query(query)
     scores, ids = index.search(qvec, k)
     results = []
@@ -24,13 +30,30 @@ def retrieve(query, index, chunks, k=4):
 def generate_answer(user_question, retrieved_chunks):
     context = "\n\n".join(retrieved_chunks)
 
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model=CHAT_MODEL,
-        instructions=(
-            "You are an Insurance Agency Customer Care assistant. "
-            "Use only the provided context to answer. "
-            "If not found, say you don't have it and offer human support."
-        ),
-        input=f"Context:\n{context}\n\nQuestion:\n{user_question}"
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion:\n{user_question}"},
+        ],
     )
-    return response.output_text
+    return response.choices[0].message.content
+
+def draft_document(user_instruction, retrieved_chunks):
+    """Generate a legal document draft using retrieved context."""
+    context = "\n\n".join(retrieved_chunks)
+
+    response = client.chat.completions.create(
+        model=CHAT_MODEL,
+        messages=[
+            {"role": "system", "content": DRAFT_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"Reference material:\n{context}\n\n"
+                    f"Drafting instruction:\n{user_instruction}"
+                ),
+            },
+        ],
+    )
+    return response.choices[0].message.content

@@ -27,9 +27,12 @@ def create_pdf(path, text):
 if __name__ == "__main__":
     out = os.path.join(os.path.dirname(__file__), "knowledge.pdf")
     text = (
-        "Sample knowledge base PDF for the demo.\n\n"
-        "This PDF provides a few sentences about the product, policies, and support contact.\n"
-        "Use /ingest endpoint to index this content and then /chat to query."
+        "Kenyan Law Firm – Legal Knowledge Base\n\n"
+        "This PDF provides reference material on Kenyan civil procedure, "
+        "limitation periods, employment law, constitutional rights, and "
+        "legal drafting conventions.\n\n"
+        "Use the /ingest endpoint to index this content and then /chat to "
+        "ask legal questions or /draft to generate legal documents."
     )
     create_pdf(out, text)
     print(f"Wrote sample PDF to: {out}")

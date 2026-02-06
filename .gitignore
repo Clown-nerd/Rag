@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+backend/.env
+
+# Node
+node_modules/
+dist/
+
+# FAISS index and chunk cache (regenerated via /ingest)
+backend/data/index.faiss
+backend/data/chunks.json
+
+# OS
+.DS_Store
+Thumbs.db
