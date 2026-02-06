@@ -35,4 +35,8 @@ def get_settings() -> dict:
         "chunk_tokens": _int_env("CHUNK_TOKENS", 450),
         "chunk_overlap": _int_env("CHUNK_OVERLAP", 80),
         "retrieval_k": _int_env("RETRIEVAL_K", 4),
+
+        # --- Server binding (0.0.0.0 allows LAN access) ---
+        "host": os.getenv("HOST", "0.0.0.0"),
+        "port": _int_env("PORT", 8000),
     }

@@ -5,7 +5,8 @@ A complete end-to-end **Retrieval-Augmented Generation (RAG)** legal assistant f
 This project includes:
 
 * FastAPI backend (PDF → chunks → embeddings → vector search → AI answer / document draft)
-* React frontend chat widget with Ask and Draft modes
+* **Full-page GUI** with sidebar navigation, PDF upload, and settings panel
+* Network-accessible — other computers on the same LAN can use the assistant
 * Centralised **config/** module for all prompts and settings
 * Sample PDF knowledge base with Kenyan legal content
 * FAISS vector database
@@ -17,9 +18,11 @@ This project includes:
 
 * Ask questions about Kenyan law grounded in your own PDF documents
 * Draft legal documents: plaints, submissions, affidavits, demand letters, and more
+* **Upload PDFs** directly through the GUI — no terminal needed
+* **LAN access** — share the URL with other advocates on your office network
+* **Settings panel** — view current model configuration at a glance
 * No data sent to external APIs — everything runs on your local machine
 * Dedicated `config/` module for version-controlled prompt and setting storage
-* Clean backend architecture, lightweight frontend widget
 
 ---
 
@@ -28,11 +31,11 @@ This project includes:
 ```
 simple-rag-ai-agent-main/
   backend/
-    main.py
+    main.py                # FastAPI server — serves API + built frontend
     requirements.txt
     config/                # ← RAG configuration & system prompt storage
       __init__.py
-      settings.py          #   model names, base URLs, retrieval tunables
+      settings.py          #   model names, base URLs, retrieval tunables, host/port
       prompts.py           #   SYSTEM_PROMPT, DRAFT_PROMPT
     rag/
       pdf_to_text.py
@@ -46,10 +49,11 @@ simple-rag-ai-agent-main/
 
   frontend/
     package.json
+    vite.config.js
     index.html
     src/
       main.jsx
-      App.jsx
+      App.jsx              # Full-page GUI with sidebar
       ChatWidget.jsx
       styles.css
 ```
@@ -60,7 +64,7 @@ simple-rag-ai-agent-main/
 
 ### Backend
 
-* FastAPI
+* FastAPI (serves API + static frontend)
 * PyPDF
 * tiktoken
 * FAISS
@@ -104,9 +108,12 @@ EMBED_MODEL=nomic-embed-text
 CHUNK_TOKENS=450
 CHUNK_OVERLAP=80
 RETRIEVAL_K=4
+HOST=0.0.0.0
+PORT=8000
 ```
 
-Make sure this file is **not committed to GitHub**. Add it to `.gitignore`.
+* Setting `HOST=0.0.0.0` makes the server accessible to other computers on your network.
+* Make sure this file is **not committed to GitHub**. It is included in `.gitignore`.
 
 ---
 
@@ -123,29 +130,38 @@ Ollama runs on `http://localhost:11434` by default.
 
 ---
 
-## Backend Setup
+## Quick Start (single server)
+
+### 1. Build the frontend
+
+```bash
+cd frontend
+npm install
+npm run build        # outputs to frontend/dist/
+```
+
+### 2. Start the backend
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-
 pip install -r requirements.txt
+
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-### Generate sample PDF
+### 3. Open the GUI
 
-```bash
-python rag/make_sample_pdf.py
-```
+On the host machine: <http://localhost:8000>
 
-### Run server
+From another computer on your network: `http://<host-ip>:8000`
 
-```bash
-uvicorn main:app --reload --port 8000
-```
+(Find your IP with `hostname -I` on Linux or `ipconfig` on Windows.)
 
-### Ingest PDF (build vector index)
+### 4. Ingest the knowledge base
+
+Click **📄 Upload PDF** in the sidebar, or ingest the default PDF:
 
 ```bash
 curl -X POST http://localhost:8000/ingest
@@ -153,27 +169,51 @@ curl -X POST http://localhost:8000/ingest
 
 ---
 
-## Frontend Setup
+## Development Mode
+
+Run the frontend dev server with hot-reload (proxies API calls to the backend):
 
 ```bash
-cd frontend
-npm install
-npm run dev
+# Terminal 1 — backend
+cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
 ```
 
-Open the URL shown in terminal (usually [http://localhost:5173](http://localhost:5173))
-
-Use the **Ask** tab to ask legal questions or switch to the **Draft** tab to request document drafts.
+Open <http://localhost:5173> for the dev frontend.
 
 ---
 
 ## API Endpoints
 
-| Method | Path      | Body                         | Description                        |
-|--------|-----------|------------------------------|------------------------------------|
-| POST   | `/ingest` | –                            | Index the PDF knowledge base       |
-| POST   | `/chat`   | `{ "message": "..." }`      | Ask a legal question               |
-| POST   | `/draft`  | `{ "instruction": "..." }`  | Draft a legal document             |
+| Method | Path        | Body                         | Description                        |
+|--------|-------------|------------------------------|------------------------------------|
+| POST   | `/ingest`   | –                            | Index the default PDF              |
+| POST   | `/chat`     | `{ "message": "..." }`      | Ask a legal question               |
+| POST   | `/draft`    | `{ "instruction": "..." }`  | Draft a legal document             |
+| POST   | `/upload`   | multipart form (`file`)      | Upload a PDF and index it          |
+| GET    | `/settings` | –                            | View current model configuration   |
+
+---
+
+## GUI Overview
+
+The GUI has three tabs accessible from the sidebar:
+
+| Tab               | Purpose                                                  |
+|-------------------|----------------------------------------------------------|
+| 💬 **Assistant**  | Chat / draft interface with Ask and Draft modes          |
+| 📄 **Upload PDF** | Upload new PDFs to the knowledge base via the browser    |
+| ⚙️ **Settings**  | View current configuration and the network URL to share  |
+
+---
+
+## LAN Access
+
+The server binds to `0.0.0.0` by default, which means any computer on the same
+network can access the assistant. Share the URL shown in the **Settings** tab
+(e.g. `http://192.168.1.50:8000`) with other advocates in your office.
 
 ---
 
@@ -199,7 +239,7 @@ All prompts and tuneable settings live in `backend/config/`:
 
 | File            | Purpose                                            |
 |-----------------|----------------------------------------------------|
-| `settings.py`   | Model names, Ollama URL, retrieval parameters      |
+| `settings.py`   | Model names, Ollama URL, retrieval parameters, host/port |
 | `prompts.py`    | `SYSTEM_PROMPT` (Q&A) and `DRAFT_PROMPT` (drafts)  |
 
 Edit `prompts.py` to customise the assistant's behaviour, tone, or areas of law.
